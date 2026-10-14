@@ -1,0 +1,587 @@
+Sun Oct 11 13:23:14 2026
+      ]CD 'c:/APL'
+C:\Users\raagn\OneDrive\Desktop
+      2⎕FIX 'SIMPLEX'
+      2⎕FIX 'INFEASIBLE'
+      2⎕FIX 'UNBOUNDED'
+      2⎕FIX 'PRODUCTION'
+      2⎕FIX 'TRANSPORTATION'
+      2⎕FIX 'LARGE'
+
+      ⍝ APL FUNCTION CODES
+
+      ⎕VR 'SIMPLEX'
+     ∇ K←SIMPLEX U;NR;IB;I;J;NA;NS;NC;JB;NT;V;X;L;N;NO;⎕IO                    
+[1]    ⍝ THIS FUNCTION SOLVES THE FOLLOWING LINEAR PROGRAM VIA THE            
+[2]    ⍝ BASIC SIMPLEX METHOD: DETERMINE ONE OR MORE NONEGATIVE VECTORS X     
+[3]    ⍝ WHICH OPTIMIZE THE OBJECTIVE FUNCTION C+.×X SUBJECT TO CONSTRAINTS:  
+[4]    ⍝ (((S='≤')⌿A)+.×X)≤(S='≤')/B; (((S='≥')⌿A)+.×X)≥(S='≥')/B; AND        
+[5]    ⍝ (((S='=')⌿A)+.×X)=(S='=')/B.  THE ARGUMENT U IS EQUAL TO ONE FOR     
+[6]    ⍝ MAXIMIZATION AND MINUS ONE FOR MINIMIZATION.  A, B, AND C ARE        
+[7]    ⍝ NUMERIC GLOBAL INPUTS WITH (⍴A) = (⍴B),⍴C.  S IS A CHARACTER GLOBAL  
+[8]    ⍝ INPUT VECTOR OF SIGNS '≤≥=' WITH (⍴S) = ⍴B.  OTHER NUMERIC GLOBAL    
+[9]    ⍝ INPUT SCALARS ARE BIGM, WHICH IS A POSITIVE NUMBER SIGNIFICANTLY     
+[10]   ⍝ LARGER THAN ⌈/|C USED TO FORCE ARTIFICIAL VARIABLES OUT OF THE BASIS,
+[11]   ⍝ MAXITER, WHICH LIMITS THE NUMBER OF SIMPLEX ITERATIONS, AND MAXOPT,  
+[12]   ⍝ WHICH LIMITS THE NUMBER OF ALTERNATIVE OPTIMAL SOLUTIONS. THE        
+[13]   ⍝ EXPLICIT RESULT K IS EQUAL TO: ZERO IF AN OPTIMAL SOLUTION IS        
+[14]   ⍝ DETERMINED; ONE IF NO SOLUTION EXISTS; TWO IF THE SOLUTION IS        
+[15]   ⍝ UNBOUNDED; AND THREE IF THE ITERATION LIMIT IS ACTIVE.  IF AN        
+[16]   ⍝ OPTIMAL SOLUTION IS DETERMINED, THE ROWS OF PRIMAL CONTAIN ONE OR    
+[17]   ⍝ MORE DISTINCT ALTERNATIVE PRIMAL SOLUTIONS, THE ROWS OF DUAL CONTAIN 
+[18]   ⍝ CORRESPONDING (NOT NECESSARILY DISTINCT) DUAL SOLUTIONS, PRIMAL_OBJ  
+[19]   ⍝ CONTAINS THE OPTIMAL VALUE OF THE PRIMAL OBJECTIVE FUNCTION, AND     
+[20]   ⍝ DUAL_OBJ CONTAINS THE OPTIMAL VALUE OF THE DUAL OBJECTIVE FUNCTION.  
+[21]   ⍝ WITH PERFECT ARITHMETIC, WE SHOULD HAVE PRIMAL_OBJ = DUAL_OBJ.       
+[22]   ⍝ ITERATIONS IS THE TOTAL NUMBER OF CYCLES THROUGH THE MAIN LOOP.      
+[23]   ⍝ PREVIOUSLY PUBLISHED UNDER ALGORITHMS IN MARCH 1985 APL QUOTE QUAD   
+[24]   ⍝ WITH CORRECTIONS IN SEPTEMBER 1985 APL QUOTE QUAD.  THIS VERSION     
+[25]   ⍝ ELIMINATES UNDERLINES AND SUPERFLUOUS ROUNDING, AND IT CORRECTS      
+[26]   ⍝ SIGNS IN THE DUAL SOLUTION.                                          
+[27]   ⍝ BOB AGNEW, raagnew1@gmail.com, raagnew.com                           
+[28]   ⎕IO←1                                                                  
+[29]   IB←(⍳NR)∘.=⍳NR←⍴B                                                      
+[30]   B[I]←-B[I←(B<0)/⍳NR]                                                   
+[31]   A[I;]←-A[I;]                                                           
+[32]   S[J,K]←((⍴J←(S[I]='≥')/I)⍴'≤'),(⍴K←(S[I]='≤')/I)⍴'≥'                   
+[33]   M←A,((S='≤')/IB),(-(S='≥')/IB),((S≠'≤')/IB),B                          
+[34]   Z0←(U×C),((NS←+/S≠'=')⍴0),((NA←+/S≠'≤')⍴-BIGM),0                       
+[35]   Z←-Z0+BIGM×+⌿(S≠'≤')⌿M                                                 
+[36]   BB←(NC+⍳+/S='≤'),(NC←⍴C)+NS+⍳NA                                        
+[37]   BB←BB[JB←⍋((S='≤')/⍳NR),((S='≥')/⍳NR),(S='=')/⍳NR]                     
+[38]   PRIMAL←(0,NC)⍴0                                                        
+[39]   DUAL←(0,NR)⍴0                                                          
+[40]   PRIMAL_OBJ←DUAL_OBJ←⍬                                                  
+[41]   NT←NC+NS+NA+N←NO←K←1                                                   
+[42]  L1:→(0>V←⌊/¯1↓ZB←Z[NB←(~(⍳NT)∊BB)/⍳NT])/L3                              
+[43]   →(∨/0<,M[(BB∊(-NA)↑⍳NT-1)/⍳NR;NT])/0,X←(I←BB≤NC)/,M[;NT]               
+[44]   →((V=0)∧1=∨/(X←((⍳NC)∊I)\X[⍋I←I/BB])∧.=⍉PRIMAL)/L2                     
+[45]   PRIMAL←PRIMAL,[1]X                                                     
+[46]   PRIMAL_OBJ←X+.×C                                                       
+[47]   I←(NC+⍳NS),NC+NS+(+/S='≥')+⍳+/S='='                                    
+[48]   Y←((I∊NB)\(Z+Z0)[(NB∊I)/NB])[JB]                                       
+[49]   Y[(S='≥')/⍳NR]←-Y[(S='≥')/⍳NR]                                         
+[50]   DUAL←DUAL,[1]U×Y                                                       
+[51]   DUAL_OBJ←(U×Y)+.×B                                                     
+[52]  L2:→((V>0)∨MAXOPT<NO←NO+1)/(K←0)                                        
+[53]  L3:L←0<⌈⌿(M[;NB])[;J←(V=¯1↓ZB)/⍳NT-NR+1]                                
+[54]   →(0>V)/L4                                                              
+[55]   →(∨/L)/L5                                                              
+[56]   →0                                                                     
+[57]  L4:→(∧/L)/L5                                                            
+[58]   →0,K←2                                                                 
+[59]  L5:J←J[?⍴J←L/J]                                                         
+[60]   V←⌊/X←(,M[L;NT])÷,M[L←(0<,M[;NB[J]])/⍳NR;NB[J]]                        
+[61]   BB[I←I[?⍴I←(V=X)/L]]←NB[J]                                             
+[62]   M←M-(,M[;NB[J]])∘.×V←(,M[I;])÷,M[I;NB[J]]                              
+[63]   Z←Z-Z[NB[J]]×,M[I;]←V                                                  
+[64]   ITERATIONS←N                                                           
+[65]   →(MAXITER≥N←N+1)/L1                                                    
+[66]   →0,K←3                                                                 
+     ∇                                                                        
+
+      ⎕VR 'INFEASIBLE'
+     ∇ INFEASIBLE                                             
+[1]    ⎕←'THIS PROBLEM HAS NO NONNEGATIVE SOLUTION'           
+[2]    ⎕←'REFERENCE HADLEY, LINEAR PROGRAMMING, EQUATION 1-24'
+[3]    BIGM←99999                                             
+[4]    MAXITER←10000                                          
+[5]    MAXOPT←100                                             
+[6]    A←2 2⍴1 ¯1 3 ¯1                                        
+[7]    B←0 ¯3                                                 
+[8]    C←1 1                                                  
+[9]    S←'≥≤'                                                 
+[10]   ⎕←⎕TC[3]                                               
+[11]   ⎕←'A MATRIX'                                           
+[12]   A                                                      
+[13]   ⎕←'B VECTOR'                                           
+[14]   B                                                      
+[15]   ⎕←'C VECTOR'                                           
+[16]   C                                                      
+[17]   ⎕←'S VECTOR'                                           
+[18]   S                                                      
+[19]   ⎕←⎕TC[3]                                               
+[20]   ⎕←'MAXIMIZATION STATUS'                                
+[21]   SIMPLEX 1                                              
+     ∇                                                        
+
+      ⎕VR 'UNBOUNDED'
+     ∇ UNBOUNDED                                                
+[1]    ⎕←'CONSTRAINTS ALLOW INFINITELY LARGE OBJECTIVE FUNCTION'
+[2]    ⎕←'REFERENCE HADLEY, LINEAR PROGRAMMING, EQUATION 1-20'  
+[3]    BIGM←99999                                               
+[4]    MAXITER←10000                                            
+[5]    MAXOPT←100                                               
+[6]    A←2 2⍴1 ¯1 ¯0.5 1                                        
+[7]    B←¯1 2                                                   
+[8]    C←2 2                                                    
+[9]    S←'≥≤'                                                   
+[10]   ⎕←⎕TC[3]                                                 
+[11]   ⎕←'A MATRIX'                                             
+[12]   A                                                        
+[13]   ⎕←'B VECTOR'                                             
+[14]   B                                                        
+[15]   ⎕←'C VECTOR'                                             
+[16]   C                                                        
+[17]   ⎕←'S VECTOR'                                             
+[18]   S                                                        
+[19]   ⎕←⎕TC[3]                                                 
+[20]   ⎕←'MAXIMIZATION STATUS'                                  
+[21]   SIMPLEX 1                                                
+     ∇                                                          
+
+      ⎕VR 'PRODUCTION'
+     ∇ PRODUCTION                                                    
+[1]    ⎕←'MAXIMIZE PROFIT ACROSS 5 PRODUCTS, SUBJECT TO DEPARTMENTAL'
+[2]    ⎕←'MAN-HOUR CONSTRAINTS AND MINIMUM UNITS'                    
+[3]    ⎕←'SOURCE OF THIS EXAMPLE UNKNOWN'                            
+[4]    BIGM←99999                                                    
+[5]    MAXITER←10000                                                 
+[6]    MAXOPT←100                                                    
+[7]    A←3 5⍴6 10 20 10 5 4 8 10 6 3 2 3 4 2 1                       
+[8]    A←A⍪(⍳5)∘.=⍳5                                                 
+[9]    B←2000 1200 500 50 30 20 10 20                                
+[10]   C←10 20 30 15 5                                               
+[11]   S←(3⍴'≤'),5⍴'≥'                                               
+[12]   ⎕←⎕TC[3]                                                      
+[13]   ⎕←'A MATRIX'                                                  
+[14]   A                                                             
+[15]   ⎕←'B VECTOR'                                                  
+[16]   B                                                             
+[17]   ⎕←'C VECTOR'                                                  
+[18]   C                                                             
+[19]   ⎕←'S VECTOR'                                                  
+[20]   S                                                             
+[21]   ⎕←⎕TC[3]                                                      
+[22]   ⎕←'MAXIMIZE PROFIT'                                           
+[23]   ⎕←'MAXIMIZATION STATUS'                                       
+[24]   SIMPLEX 1                                                     
+[25]   ⎕←'PRIMAL SOLUTION'                                           
+[26]   PRIMAL                                                        
+[27]   ⎕←'DUAL SOLUTION'                                             
+[28]   DUAL                                                          
+[29]   ⎕←'PRIMAL OBJECTIVE VALUE'                                    
+[30]   PRIMAL_OBJ                                                    
+[31]   ⎕←'DUAL OBJECTIVE VALUE'                                      
+[32]   DUAL_OBJ                                                      
+[33]   ⎕←⎕TC[3]                                                      
+[34]   ⎕←'MINIMIZATION FOR COMPARISON'                               
+[35]   ⎕←'MINIMIZATION STATUS'                                       
+[36]   SIMPLEX ¯1                                                    
+[37]   ⎕←'PRIMAL SOLUTION'                                           
+[38]   PRIMAL                                                        
+[39]   ⎕←'DUAL SOLUTION'                                             
+[40]   DUAL                                                          
+[41]   ⎕←'PRIMAL OBJECTIVE VALUE'                                    
+[42]   PRIMAL_OBJ                                                    
+[43]   ⎕←'DUAL OBJECTIVE VALUE'                                      
+[44]   DUAL_OBJ                                                      
+     ∇                                                               
+
+      ⎕VR 'TRANSPORTATION'
+     ∇ TRANSPORTATION                                                   
+[1]    ⎕←'SHIP A PRODUCT FROM 4 PLANTS TO 5 STORES AT MIMIMUM COST'     
+[2]   ⍝ SUBJECT TO DEMAND AND SUPPLY CONSTRAINTS                        
+[3]    ⎕←'SOURCE FOR THIS EXAMPLE UNKNOWN'                              
+[4]    BIGM←99999                                                       
+[5]    MAXITER←10000                                                    
+[6]    MAXOPT←100                                                       
+[7]    A←¯1↓(4 20⍴80↑100⍴(5⍴1),20⍴0)⍪↑,/4⍴⊂(⍳5)∘.=⍳5                    
+[8]    B←25 50 100 25 25 100 25 25                                      
+[9]    C←10 15 20 25 999 10 15 20 999 15 15 20 999 15 20 25 999 20 15 20
+[10]   S←8⍴'='                                                          
+[11]   ⎕←⎕TC[3]                                                         
+[12]   ⎕←'A MATRIX'                                                     
+[13]   A                                                                
+[14]   ⎕←'B VECTOR'                                                     
+[15]   B                                                                
+[16]   ⎕←'C VECTOR'                                                     
+[17]   C                                                                
+[18]   ⎕←'S VECTOR'                                                     
+[19]   S                                                                
+[20]   ⎕←⎕TC[3]                                                         
+[21]   ⎕←'MINIMIZE COST'                                                
+[22]   ⎕←'MINIMIZATION STATUS'                                          
+[23]   SIMPLEX ¯1                                                       
+[24]   ⎕←'SIX ALTERNATIVE PRIMAL SOLUTIONS'                             
+[25]   PRIMAL                                                           
+[26]   ⎕←'IDENTICAL DUAL SOLUTIONS'                                     
+[27]   DUAL                                                             
+[28]   ⎕←'PRIMAL OBJECTIVE VALUE'                                       
+[29]   PRIMAL_OBJ                                                       
+[30]   ⎕←'DUAL OBJECTIVE VALUE'                                         
+[31]   DUAL_OBJ                                                         
+[32]   ⎕←⎕TC[3]                                                         
+[33]   ⎕←'MAXIMIZATION FOR COMPARISON'                                  
+[34]   ⎕←'MAXIMIZATION STATUS'                                          
+[35]   SIMPLEX 1                                                        
+[36]   ⎕←'TWO ALTERNATIVE PRIMAL SOLUTIONS'                             
+[37]   PRIMAL                                                           
+[38]   ⎕←'IDENTICAL DUAL SOLUTIONS'                                     
+[39]   DUAL                                                             
+[40]   ⎕←'PRIMAL OBJECTIVE VALUE'                                       
+[41]   PRIMAL_OBJ                                                       
+[42]   ⎕←'DUAL OBJECTIVE VALUE'                                         
+[43]   DUAL_OBJ                                                         
+     ∇                                                                  
+
+      ⎕VR 'LARGE'
+     ∇ LARGE                                                     
+[1]    ⎕←'LARGE PROBLEM WITH 10000 VARIABLES AND 100 CONSTRAINTS'
+[2]    ⎕←'AND RANDOMIZED ELEMENTS'                               
+[3]    ⎕RL←17                                                    
+[4]    BIGM←99999                                                
+[5]    MAXITER←10000                                             
+[6]    MAXOPT←100                                                
+[7]    SAMPLE←{?⍺⍴⍵}                                             
+[8]    A←100 10000⍴1000000 SAMPLE 50                             
+[9]    B←100 SAMPLE 100000                                       
+[10]   C←10000 SAMPLE 100                                        
+[11]   S←100⍴'≤'                                                 
+[12]   ⎕←⎕TC[3]                                                  
+[13]   ⎕←'A MATRIX (FIRST 10 ROWS AND COLUMNS)'                  
+[14]   A[⍳10;⍳10]                                                
+[15]   ⎕←'B VECTOR'                                              
+[16]   B                                                         
+[17]   ⎕←'C VECTOR (FIRST 100 ELEMENTS)'                         
+[18]   C[⍳100]                                                   
+[19]   ⎕←'S VECTOR'                                              
+[20]   S                                                         
+[21]   T0←3⊃⎕AI                                                  
+[22]   ⎕←⎕TC[3]                                                  
+[23]   ⎕←'MAXIMIZATION WITH ≤ CONSTRAINTS'                       
+[24]   ⎕←'MAXIMIZATION STATUS'                                   
+[25]   SIMPLEX 1                                                 
+[26]   T1←3⊃⎕AI                                                  
+[27]   ⎕←'ITERATIONS'                                            
+[28]   ITERATIONS                                                
+[29]   ⎕←'EXECUTION SECONDS'                                     
+[30]   (T1-T0)÷1000                                              
+[31]   ⎕←'PRIMAL SOLUTION (FIRST 1000 ELEMENTS)'                 
+[32]   PRIMAL[;⍳1000]                                            
+[33]   ⎕←'DUAL SOLUTION'                                         
+[34]   DUAL                                                      
+[35]   ⎕←'PRIMAL OBJECTIVE VALUE'                                
+[36]   PRIMAL_OBJ                                                
+[37]   ⎕←'DUAL OBJECTIVE VALUE'                                  
+[38]   DUAL_OBJ                                                  
+[39]   T0←3⊃⎕AI                                                  
+[40]   ⎕←⎕TC[3]                                                  
+[41]   ⎕←'MINIMIZATION WITH ≥ CONSTRAINTS'                       
+[42]   S←100⍴'≥'                                                 
+[43]   ⎕←'REVISED S VECTOR'                                      
+[44]   S                                                         
+[45]   ⎕←'MINIMIZATION STATUS'                                   
+[46]   SIMPLEX ¯1                                                
+[47]   ⎕←'ITERATIONS'                                            
+[48]   ITERATIONS                                                
+[49]   T1←T1←3⊃⎕AI                                               
+[50]   ⎕←'EXECUTION SECONDS'                                     
+[51]   (T1-T0)÷1000                                              
+[52]   ⎕←'PRIMAL SOLUTION (FIRST 1000 ELEMENTS)'                 
+[53]   PRIMAL[;⍳1000]                                            
+[54]   ⎕←'DUAL SOLUTION'                                         
+[55]   DUAL                                                      
+[56]   ⎕←'PRIMAL OBJECTIVE VALUE'                                
+[57]   PRIMAL_OBJ                                                
+[58]   ⎕←'DUAL OBJECTIVE VALUE'                                  
+[59]   DUAL_OBJ                                                  
+[60]   ⎕←'PERCENT DIFFERENCE OF OBJECTIVE VALUES'                
+[61]   100×(|PRIMAL_OBJ-DUAL_OBJ)÷PRIMAL_OBJ⌊DUAL_OBJ            
+[62]   ⎕←'SHOULD BE EQUAL. VERY MINOR DISCREPANCY.'              
+     ∇                                                           
+
+      ⍝ APL FUNCTION EXECUTIONS
+
+      INFEASIBLE
+THIS PROBLEM HAS NO NONNEGATIVE SOLUTION
+REFERENCE HADLEY, LINEAR PROGRAMMING, EQUATION 1-24
+
+
+A MATRIX
+1 ¯1
+3 ¯1
+B VECTOR
+0 ¯3
+C VECTOR
+1 1
+S VECTOR
+≥≤
+
+
+MAXIMIZATION STATUS
+1
+
+
+      UNBOUNDED
+CONSTRAINTS ALLOW INFINITELY LARGE OBJECTIVE FUNCTION
+REFERENCE HADLEY, LINEAR PROGRAMMING, EQUATION 1-20
+
+
+A MATRIX
+ 1   ¯1
+¯0.5  1
+B VECTOR
+¯1 2
+C VECTOR
+2 2
+S VECTOR
+≥≤
+
+
+MAXIMIZATION STATUS
+2
+
+      PRODUCTION
+MAXIMIZE PROFIT ACROSS 5 PRODUCTS, SUBJECT TO DEPARTMENTAL
+MAN-HOUR CONSTRAINTS AND MINIMUM UNITS
+SOURCE OF THIS EXAMPLE UNKNOWN
+
+
+A MATRIX
+6 10 20 10 5
+4  8 10  6 3
+2  3  4  2 1
+1  0  0  0 0
+0  1  0  0 0
+0  0  1  0 0
+0  0  0  1 0
+0  0  0  0 1
+B VECTOR
+2000 1200 500 50 30 20 10 20
+C VECTOR
+10 20 30 15 5
+S VECTOR
+≤≤≤≥≥≥≥≥
+
+
+MAXIMIZE PROFIT
+MAXIMIZATION STATUS
+0
+PRIMAL SOLUTION
+50 43.33333333 53.33333333 10 20
+DUAL SOLUTION
+0.6666666667 1.666666667 0 ¯0.6666666667 0 0 ¯1.666666667 ¯3.333333333
+PRIMAL OBJECTIVE VALUE
+3216.666667
+DUAL OBJECTIVE VALUE
+3216.666667
+
+
+MINIMIZATION FOR COMPARISON
+MINIMIZATION STATUS
+0
+PRIMAL SOLUTION
+50 30 20 10 20
+DUAL SOLUTION
+0 0 0 10 20 30 15 5
+PRIMAL OBJECTIVE VALUE
+1950
+DUAL OBJECTIVE VALUE
+1950
+
+      TRANSPORTATION
+SHIP A PRODUCT FROM 4 PLANTS TO 5 STORES AT MIMIMUM COST
+SOURCE FOR THIS EXAMPLE UNKNOWN
+
+
+A MATRIX
+1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 0 0 0 0 0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1
+1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0
+0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0
+0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0
+0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0
+B VECTOR
+25 50 100 25 25 100 25 25
+C VECTOR
+10 15 20 25 999 10 15 20 999 15 15 20 999 15 20 25 999 20 15 20
+S VECTOR
+========
+
+
+MINIMIZE COST
+MINIMIZATION STATUS
+0
+SIX ALTERNATIVE PRIMAL SOLUTIONS
+ 0 25 0 0 0  0 25 0 0 25 25 50 0 25  0 0 0 25 0 0
+ 0 25 0 0 0 25  0 0 0 25  0 75 0 25  0 0 0 25 0 0
+25  0 0 0 0  0 25 0 0 25  0 75 0 25  0 0 0 25 0 0
+25  0 0 0 0  0 50 0 0  0  0 50 0 25 25 0 0 25 0 0
+ 0 25 0 0 0 25 25 0 0  0  0 50 0 25 25 0 0 25 0 0
+ 0 25 0 0 0  0 50 0 0  0 25 25 0 25 25 0 0 25 0 0
+IDENTICAL DUAL SOLUTIONS
+15 15 20 15 ¯5 0 5 ¯5
+15 15 20 15 ¯5 0 5 ¯5
+15 15 20 15 ¯5 0 5 ¯5
+15 15 20 15 ¯5 0 5 ¯5
+15 15 20 15 ¯5 0 5 ¯5
+15 15 20 15 ¯5 0 5 ¯5
+PRIMAL OBJECTIVE VALUE
+3375
+DUAL OBJECTIVE VALUE
+3375
+
+
+MAXIMIZATION FOR COMPARISON
+MAXIMIZATION STATUS
+0
+TWO ALTERNATIVE PRIMAL SOLUTIONS
+0 0 0 0 25 25  0 0 25 0  0 75 25 0 0 0 25 0 0 0
+0 0 0 0 25  0 25 0 25 0 25 50 25 0 0 0 25 0 0 0
+IDENTICAL DUAL SOLUTIONS
+999 999 1004 1983 ¯989 ¯984 ¯5 0
+999 999 1004 1983 ¯989 ¯984 ¯5 0
+PRIMAL OBJECTIVE VALUE
+101650
+DUAL OBJECTIVE VALUE
+101650
+
+      LARGE
+LARGE PROBLEM WITH 10000 VARIABLES AND 100 CONSTRAINTS
+AND RANDOMIZED ELEMENTS
+
+
+A MATRIX (FIRST 10 ROWS AND COLUMNS)
+18  9 45 12 26  8 24 42 20 38
+12 25  7  1 28 43  7 33 24 19
+14 34 48 31 27 11 38 29 17 28
+ 9 30 24 28 49 12 50 22 49 35
+30 46 50 45 45  1 10 47 47  1
+ 3 32 28 49 43 15 28 29 28 18
+41  3 28 41 48 17 43 25  1 46
+14 17 12 41 14 31 38 48 48 26
+ 9 34 10 16 34 30 42 13 14 38
+45 46 33 39  3 47 14  2 21 29
+B VECTOR
+10556 65016 14832 52245 48148 66605 41093 83637 73031 73040 21029 43961 97919 41138 17652 78160 83444 29073 65849 46627
+      25350 32369 81800 63703 4093 75317 26675 92818 82094 27947 34298 79682 44038 90216 14094 89269 6011 96545 92615
+      29509 97843 86172 60262 50020 95652 39847 38590 11268 64455 32872 85753 58043 92323 80214 80046 5170 59737 3517
+      46091 74523 7460 35353 7727 14143 42666 43847 24057 5277 19031 39219 3289 24183 63598 75086 43701 91856 32419 83655
+      3058 92134 9357 2289 13970 8525 51068 91061 36766 31534 49368 13218 47598 54980 49743 72402 39775 6707 76370 68583
+      67099 20415
+C VECTOR (FIRST 100 ELEMENTS)
+50 62 16 79 76 33 74 56 95 26 55 83 1 97 4 56 7 32 64 90 41 35 47 29 41 39 94 72 4 63 77 76 94 31 45 3 86 60 47 99 12 35
+      39 14 7 62 17 39 36 35 25 52 62 59 39 9 83 1 66 95 42 4 10 39 40 18 84 100 28 76 29 100 15 67 43 18 84 28 75 15 63
+      89 78 6 66 61 82 11 46 59 85 37 86 67 73 79 62 66 42 82
+S VECTOR
+≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤≤
+
+
+MAXIMIZATION WITH ≤ CONSTRAINTS
+MAXIMIZATION STATUS
+0
+ITERATIONS
+40
+EXECUTION SECONDS
+0.178
+PRIMAL SOLUTION (FIRST 1000 ELEMENTS)
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 37.74978488 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+DUAL SOLUTION
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.7920294781 0 0 0 0 0 0 0 0 0 0 0 0.07374274115 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0.4247130975 0 1.02326805 0 0 0.3751997579 0 0.5306954361 0 0 0 0 0.8933934123 0 0 0.5480047193 0 0 0 0 0
+
+      0 0 0.7506362332 0 0 1.917759556 0 0.09472304964 0 0 0 0 0 0 0 0 0 0 0 0.2071921767 0 0 0 0
+PRIMAL OBJECTIVE VALUE
+31778.49225
+DUAL OBJECTIVE VALUE
+31778.49225
+
+
+MINIMIZATION WITH ≥ CONSTRAINTS
+REVISED S VECTOR
+≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥≥
+MINIMIZATION STATUS
+0
+ITERATIONS
+4057
+EXECUTION SECONDS
+16.012
+PRIMAL SOLUTION (FIRST 1000 ELEMENTS)
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 461.6529659 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 9.297155328 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+DUAL SOLUTION
+0 0 0 0 0 0 0 0 0 0 0 0 0.001972343578 0 0 0.0014003537 0 0 0 0 0 0 0.0004101898401 0.0009486882354 0 0 0 0 0 0 0 0 0
+
+      0.000424908722 0 0 0 0.003591217205 0 0 0.004008763645 0.002494892454 0 0 0.002785395547 0 0 0 0 0 0.003950886546
+
+      0.000278414414 0.004259227341 0 0.001667876153 0 0 0 0 0.0001657071972 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+
+      0.004342437209 0 0 0 0 0.0001488414209 0.001006954592 0 0 0 0 0 0.001031453094 0 0 0 0 0 0 0 0
+PRIMAL OBJECTIVE VALUE
+3105.397482
+DUAL OBJECTIVE VALUE
+3105.396557
+PERCENT DIFFERENCE OF OBJECTIVE VALUES
+0.00002977512949
+SHOULD BE EQUAL. VERY MINOR DISCREPANCY.
